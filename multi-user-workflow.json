@@ -1,0 +1,188 @@
+{
+  "name": "Multi-user OAuth Workflow with MCP",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client-report",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "webhook-node-id",
+      "name": "Webhook",
+      "webhookId": "your-webhook-id"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://mcp.ucl.dev/mcp/?space_id=YOUR_SPACE_ID&tenant_id={{ $('Webhook').item.json.body.user_id }}&auth_token=YOUR_AUTH_TOKEN&id=YOUR_SPACE_ID",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "mcp-session-id",
+              "value": "={{ $('Init MCP Session').item.json.headers['mcp-session-id'] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"createDoc\",\n    \"arguments\": {\n      \"body\": {\n        \"title\": \"Client Report - {{ $('Webhook').item.json.body.client_name }}\"\n      },\n      \"param\": {},\n      \"connection\": {}\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "create-doc-node-id",
+      "name": "Create a Google Doc"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://mcp.ucl.dev/mcp/?space_id=YOUR_SPACE_ID&tenant_id={{ $('Webhook').item.json.body.user_id }}&auth_token=YOUR_AUTH_TOKEN&id=YOUR_SPACE_ID",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "mcp-session-id",
+              "value": "={{ $('Init MCP Session').item.json.headers['mcp-session-id'] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"sendMail\",\n    \"arguments\": {\n      \"body\": {\n        \"to\": \"{{ $('Webhook').item.json.body.recipient_email }}\",\n        \"subject\": \"Report Ready: {{ $('Webhook').item.json.body.client_name }}\",\n        \"content\": \"Hi,\\n\\nThe client report for {{ $('Webhook').item.json.body.client_name }} has been created.\\n\\nBest regards\"\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "send-gmail-node-id",
+      "name": "Send Gmail Notification"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"user\": \"{{ $('Webhook').item.json.body.user_id }}\",\n  \"client\": \"{{ $('Webhook').item.json.body.client_name }}\",\n  \"message\": \"Report created and email sent\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        832,
+        0
+      ],
+      "id": "respond-webhook-node-id",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://mcp.ucl.dev/mcp/?space_id=YOUR_SPACE_ID&tenant_id={{ $('Webhook').item.json.body.user_id }}&auth_token=YOUR_AUTH_TOKEN&id=YOUR_SPACE_ID",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"id\": 0,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"n8n-client\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "init-mcp-node-id",
+      "name": "Init MCP Session"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Init MCP Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Gmail Notification": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init MCP Session": {
+      "main": [
+        [
+          {
+            "node": "Create a Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "",
+  "meta": {},
+  "id": "",
+  "tags": []
+}
